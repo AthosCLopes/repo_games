@@ -2,19 +2,26 @@ const canvas = document.getElementById("game")
 const ctx = canvas.getContext("2d")
 
 // x, y ---> Posicionar o objeto
-// w, h ---> Definir o tamanho do personagem
+// r ---> Raio do círculo
 // vx ---> Define a velocidade horizontal
+// vy ---> Define a velocidade vertical
 
-const player = {x: 40, y: 160, w: 32, h: 32, vx: 120}
+const player = {x: 40, y: 160, r: 16, vx: 120, vy: 90}
 
 let last = 0 // Marca a posição do quadro anterior
 
 function update (dt) {
     player.x += player.vx * dt
-    // Bateu na parede esquerda ou direita? Inverte o sinal do vx
+    player.y += player.vy * dt
 
-    if (player.x < 0 || player.x + player.w > canvas.width) {
-        player.vx *= -1  
+    // Bateu na parede esquerda ou direita? Inverte o sinal do vx
+    if (player.x - player.r < 0 || player.x + player.r > canvas.width) {
+        player.vx *= -1
+    }
+
+    // Bateu em cima ou embaixo? Inverte o sinal do vy
+    if (player.y - player.r < 0 || player.y + player.r > canvas.height) {
+        player.vy *= -1
     }
 }
 
@@ -22,11 +29,11 @@ function draw () {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     ctx.fillStyle = "#4ade80"
-    ctx.fillRect(player.x, player.y, player.h, player.w)
+    ctx.beginPath()
+    ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2)
+    ctx.fill()
 
     ctx.fillStyle = "#fff"
-    ctx.fillRect(player.x, player.y, player.h, player.w)
-
     ctx.fillText("O DeltaTime - dt independe da taxa de quadros", 12, 20)
 }
 
@@ -40,5 +47,9 @@ function loop (ts) {
     draw()
     requestAnimationFrame(loop)
 }
+
+// eu uso dt porque assim o movimento fica na mesma velocidade
+// em qualquer FPS, sem ele a bola andaria mais rápido ou mais
+// devagar dependendo da tela
 
 requestAnimationFrame(loop) // Responsável por executar o primeiro disparo
