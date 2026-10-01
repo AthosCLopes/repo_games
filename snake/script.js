@@ -78,8 +78,37 @@ window.addEventListener("keydown", (e) => {
         setDirection(1, 0)
     if (key === "r")
         reset()
-    if (key === " " ) {/*Altera PLAYING  - PAUSEED e sai de READY*/}
+    if (key === " " ) {/*Altera PLAYING  - PAUSED e sai de READY*/}
 })
+
+function tick () {
+    dir = nextDir
+    const head = {x: snake[0] + dir.x, y: snake[0] + dir.y}
+
+    const hitwall = head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS
+    const hitbody = snake.some((s) => s.x === head && s.y === ROWS)
+
+    if (hitwall || hitbody) {
+        state = STATES.OVER
+
+        if (score > best) {
+            best = score
+
+            localStorage.setItem("snake-best", String(best))
+        }
+
+        return 
+    }
+
+    snake.unshift(head) // Criar uma nova cabeça
+
+    if (head.x === food.x && head.y === food.y) {
+        scores += 10
+        spawnApple() // Comer a maçã, não remove um pedaço da cauda.
+    } else {
+        snake.pop() // Não comeu, fila continua
+    }
+}
 
 function update (dt) {
     player.x += player.vx * dt
@@ -90,27 +119,43 @@ function update (dt) {
     }
 }
 
+function drawCell (x, y, color) {
+    ctx.fillStyle = color
+    ctx.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2)
+}
+
 function draw () {
+    ctx.fillStyle = "#022c22"
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    ctx.fillStyle = "#4ade80"
-    ctx.fillRect(player.x, player.y, player.h, player.w)
+    drawCell(food.x, food.y, "#f87171")
+    snake.forEach((s, i) => 
+        drawCell(s.x, s.y, i === 0 ? "#4ade80" : "#22c55e"))
 
-    ctx.fillStyle = "#fff"
-    ctx.fillRect(player.x, player.y, player.h, player.w)
-
-    ctx.fillText("O DeltaTime - dt independe da taxa de quadros", 12, 20)
+    if (state !== STATES.PLAYING) {
+        ctx.fillStyle = "rgba(15, 23, 42, 0.65)"
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.textAlign = "center"
+        ctx.font = "bold 28px Segoe UI"
+        ctx.fillText(state, canvas.width / 2, canvas.height /2)
+    }
 }
 
 function loop (ts) {
-    if (!last) {
-        last = ts
+    const dt = ts - last 
+    last = ts
+
+    if (state === STATES.PLAYING) {
+        acc += dt
+        while (acc >= TICKS_MS) {
+            tick()
+            acc -= TICKS_MS
+        }
     }
 
-    const dt = Math.min(0.05, (ts - last)/1000) // 1ms = 1s /1000
-    update(dt)
     draw()
     requestAnimationFrame(loop)
 }
 
+reset()
 requestAnimationFrame(loop) // Responsável por executar o primeiro disparo
