@@ -1,8 +1,8 @@
 const canvas = document.getElementById("game")
 const ctx = canvas.getContext("2d")
-const score1 = document.getElementById("score") 
-const state1 = document.getElementById("state")
-const best1 = document.getElementById("snake-best")
+const scoreEl = document.getElementById("score") 
+const stateEl = document.getElementById("state")
+const bestEl = document.getElementById("snake-best")
 
 const CELL = 24
 const COLS = canvas.width / CELL // 480 / 24 = 20
@@ -40,12 +40,12 @@ function reset () {
 
     dir = { x: 1, y: 0 }
     nextDir = { x: 1, y: 0 }
-
-    state = STATES.READY
-    state1 = textContent = state
-
     score = 0
-    score1 = textContent = score
+    scoreEl.textContent = score
+    spawnApple()
+    state = STATES.READY
+    stateEl.textContent = state
+
 }
 
 function spawnApple () {
@@ -78,23 +78,37 @@ window.addEventListener("keydown", (e) => {
         setDirection(1, 0)
     if (key === "r")
         reset()
-    if (key === " " ) {/*Altera PLAYING  - PAUSED e sai de READY*/}
+    if (key === " " ) {
+        if (state === STATES.PLAYING) {
+            state = STATES.PLAYING      
+        } else if (state === STATES.PAUSED || state === STATES.READY) {
+            state = STATES.PLAYING
+        }
+        stateEl.textContent = state
+    }
+
+
+    if (state === STATES.READY && ["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(key)) {
+        state = STATES.PLAYING
+        stateEl.textContent = state
+    }
 })
 
 function tick () {
     dir = nextDir
-    const head = {x: snake[0] + dir.x, y: snake[0] + dir.y}
+    const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y }
 
     const hitwall = head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS
-    const hitbody = snake.some((s) => s.x === head && s.y === ROWS)
+    const hitbody = snake.some((s) => s.x === head.x && s.y === head.y)
 
     if (hitwall || hitbody) {
         state = STATES.OVER
+        stateEl.textContent = state
 
         if (score > best) {
             best = score
-
             localStorage.setItem("snake-best", String(best))
+            bestEl.textContent = best
         }
 
         return 
@@ -103,7 +117,8 @@ function tick () {
     snake.unshift(head) // Criar uma nova cabeça
 
     if (head.x === food.x && head.y === food.y) {
-        scores += 10
+        score += 10
+        scoreEl.textContent = score 
         spawnApple() // Comer a maçã, não remove um pedaço da cauda.
     } else {
         snake.pop() // Não comeu, fila continua
@@ -138,6 +153,8 @@ function draw () {
         ctx.textAlign = "center"
         ctx.font = "bold 28px Segoe UI"
         ctx.fillText(state, canvas.width / 2, canvas.height /2)
+        ctx.font = "16px Segoe UI"
+        ctx.fillText(state === STATES.OVER ? "Pressione R para reiniciar" : "Pressione ESPAÇO para jogar", canvas.width / 2, canvas.height / 2 + 32)
     }
 }
 
