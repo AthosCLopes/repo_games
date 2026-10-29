@@ -8,7 +8,7 @@ const canvas = document.getElementById("blocos");
 const ctx = canvas.getContext("2d");
 
 const paddle = { w: 86, h: 12, x: 197, y: 530, speed: 420 };
-const ball = { x: 240, y: 500, r: 7, vx: 180, vy: -240, launched: false };
+const ball = { x: 240, y: 500, r: 7, vx: 180, vy: -300, launched: false };
 let bricks = [];
 let score = 0;
 let lives = 3;
@@ -39,8 +39,10 @@ window.addEventListener("keydown", (e) => {
     keys[e.key.toLowerCase()] = true;
     if (e.code === "Space") {
         e.preventDefault();
-        running = true;
-        ball.launched = true;
+        if (lives > 0) {
+            running = true;
+            ball.launched = true;
+        }
     }
     if (e.key.toLowerCase() === "r") reset();
 });
@@ -52,7 +54,8 @@ window.addEventListener("keyup", (e) => {
 preciso no Breakout.  */
 canvas.addEventListener("mousemove", (e) => {
     const rect = canvas.getBoundingClientRect();
-    paddle.x = e.clientX - rect.left - paddle.w / 2;
+    const scaleX = canvas.width / rect.width;
+    paddle.x = (e.clientX - rect.left) * scaleX - paddle.w / 2;
     paddle.x = Math.max(8, Math.min(canvas.width - paddle.w - 8, paddle.x));
 });
 
@@ -60,7 +63,7 @@ function resetBall() {
     ball.x = paddle.x + paddle.w / 2;
     ball.y = paddle.y - 14;
     ball.vx = 180 * (Math.random() > 0.5 ? 1 : -1);
-    ball.vy = -540;
+    ball.vy = -300;
     ball.launched = false;
 }
 
@@ -84,7 +87,7 @@ function update(dt) {
     if (keys["arrowright"] || keys["d"]) paddle.x += paddle.speed * dt;
     paddle.x = Math.max(8, Math.min(canvas.width - paddle.w - 8, paddle.x));
 
-    /*Passo 4 — Lançar a bola 
+    /*Passo 4 — Lançar a bola
     Enquanto launched é false, a bola cola no centro da raquete. Espaço arma o disparo. Isso evita a bola cair antes
     de o jogador estar pronto. */
     if (!ball.launched) {
@@ -97,8 +100,19 @@ function update(dt) {
     ball.x += ball.vx * dt;
     ball.y += ball.vy * dt;
 
-    if (ball.x < ball.r || ball.x > canvas.width - ball.r) ball.vx *= -1;
-    if (ball.y < ball.r) ball.vy *= -1;
+    // Paredes (corrige a posição para a bola não ficar presa na borda)
+    if (ball.x < ball.r) {
+        ball.x = ball.r;
+        ball.vx = Math.abs(ball.vx);
+    } else if (ball.x > canvas.width - ball.r) {
+        ball.x = canvas.width - ball.r;
+        ball.vx = -Math.abs(ball.vx);
+    }
+    if (ball.y < ball.r) {
+        ball.y = ball.r;
+        ball.vy = Math.abs(ball.vy);
+    }
+
     if (ball.y > canvas.height) {
         lives -= 1;
         if (lives <= 0) {
@@ -106,6 +120,7 @@ function update(dt) {
             return;
         }
         resetBall();
+        return;
     }
 
     /* Passo 6 — Quicar na raquete com ângulo
@@ -113,7 +128,7 @@ function update(dt) {
     fator hit entre −1 e 1. */
     if (
         ball.y + ball.r >= paddle.y &&
-        ball.y + ball.r <= paddle.y + paddle.h &&
+        ball.y - ball.r <= paddle.y + paddle.h &&
         ball.x > paddle.x &&
         ball.x < paddle.x + paddle.w &&
         ball.vy > 0 // só quando a bola ESTÁ DESCENDO
@@ -121,16 +136,18 @@ function update(dt) {
         const hit = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
         ball.vx = hit * 260;
         ball.vy = -Math.abs(ball.vy); // garante que sobe
+        ball.y = paddle.y - ball.r;   // evita colar na raquete
     }
 
-    ////Passo 7 — Colisão com tijolo
-    bricks.forEach((b) => {
+    //Passo 7 — Colisão com tijolo (apenas um por frame)
+    for (const b of bricks) {
         if (b.alive && collideBrick(b)) {
             b.alive = false;
             ball.vy *= -1;
             score += 10;
+            break;
         }
-    });
+    }
 
     if (bricks.every((b) => !b.alive)) {
         buildBricks();
@@ -155,7 +172,7 @@ function draw() {
     ctx.fillStyle = "#e5e7eb";
     ctx.font = "16px Arial";
     ctx.fillText("Pontos " + score + "   Vidas " + lives, 16, 24);
-    if (!running && lives > 0) {
+    if (!ball.launched && lives > 0) {
         ctx.textAlign = "center";
         ctx.fillText("ESPAÇO para lançar", canvas.width / 2, canvas.height / 2);
         ctx.textAlign = "left";
@@ -183,4 +200,3 @@ function loop(ts) {
 }
 reset();
 requestAnimationFrame(loop);
- 
